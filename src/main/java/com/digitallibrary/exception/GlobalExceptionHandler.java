@@ -31,6 +31,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);

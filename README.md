@@ -100,6 +100,27 @@ mvn spring-boot:run
 
 ---
 
+## Running Tests (TDD Approach)
+
+The project includes unit, slice, and integration tests covering all layers with in-memory H2 database and Liquibase schema migrations:
+
+```bash
+# Run the entire test suite
+mvn test
+
+# Run a specific test class
+mvn test -Dtest=AuthorControllerTest
+mvn test -Dtest=AuthorServiceImplTest
+mvn test -Dtest=AuthorRepositoryTest
+```
+
+### Test Coverage Highlights:
+- **`AuthorControllerTest`** (`@WebMvcTest`): Verifies REST endpoints, parameter validations (`@NotBlank`), JSON serialization, and global exception mapping (`400 Bad Request`, `404 Not Found`).
+- **`AuthorServiceImplTest`** (Unit tests with Mockito): Tests business logic for database caching, OpenLibrary API query fallbacks, entity persistence, and error handling.
+- **`AuthorRepositoryTest`** (`@DataJpaTest`): Tests JPA query methods, case-insensitive search, and table relationships executed against in-memory H2 with Liquibase XML migrations.
+
+---
+
 ## Automated Cloud Delivery (Bitbucket Pipelines → AWS Elastic Beanstalk)
 
 Deployments are automated through **Bitbucket Pipelines** directly to **AWS Elastic Beanstalk** (running on **Corretto 17** platform).

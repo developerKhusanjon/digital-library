@@ -10,8 +10,8 @@ pipelines:
           script:
             # 1. Install zip utility
             - apk add --no-cache zip
-            # 2. Build executable Spring Boot JAR
-            - mvn clean package -DskipTests -B
+            # 2. Run tests and build executable Spring Boot JAR
+            - mvn clean package -B
             # 3. Prepare Elastic Beanstalk bundle
             - cp target/*.jar app.jar
             - zip -r deploy.zip app.jar Procfile .ebextensions/
