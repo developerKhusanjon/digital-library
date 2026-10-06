@@ -1,0 +1,35 @@
+image: maven:3.9.6-eclipse-temurin-17-alpine
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Build and Package
+          caches:
+            - maven
+          script:
+            # 1. Install zip utility
+            - apk add --no-cache zip
+            # 2. Build executable Spring Boot JAR
+            - mvn clean package -DskipTests -B
+            # 3. Prepare Elastic Beanstalk bundle
+            - cp target/*.jar app.jar
+            - zip -r deploy.zip app.jar Procfile .ebextensions/
+          artifacts:
+            - deploy.zip
+
+      - step:
+          name: Deploy to AWS Elastic Beanstalk
+          deployment: production
+          script:
+            - pipe: atlassian/aws-elasticbeanstalk-deploy:1.0.8
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+                APPLICATION_NAME: $APPLICATION_NAME
+                ENVIRONMENT_NAME: $ENVIRONMENT_NAME
+                ZIP_FILE: 'deploy.zip'
+                S3_BUCKET: $S3_BUCKET
+                VERSION_LABEL: 'build-${BITBUCKET_BUILD_NUMBER}-${BITBUCKET_COMMIT:0:7}'
+                WAIT: 'true'

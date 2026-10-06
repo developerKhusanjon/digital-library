@@ -12,6 +12,7 @@ A Spring Boot REST API service that searches authors and their works using a loc
 - **Lombok**
 - **Maven**
 - **Docker** & **Docker Compose**
+- **AWS Elastic Beanstalk** (Corretto 17) & **Bitbucket Pipelines** (CI/CD)
 
 ---
 
@@ -99,11 +100,66 @@ mvn spring-boot:run
 
 ---
 
+## Automated Cloud Delivery (Bitbucket Pipelines → AWS Elastic Beanstalk)
+
+Deployments are automated through **Bitbucket Pipelines** directly to **AWS Elastic Beanstalk** (running on **Corretto 17** platform).
+
+### How It Works
+
+1. A developer pushes code changes to the `main` branch in Bitbucket.
+2. **Bitbucket Pipelines** triggers automatically:
+   - Builds and packages the Spring Boot JAR with Maven on Java 17.
+   - Bundles `app.jar`, `Procfile`, and `.ebextensions/` into `deploy.zip`.
+   - Uses the official `atlassian/aws-elasticbeanstalk-deploy` pipe to upload the bundle to Amazon S3 and deploy it to Elastic Beanstalk with zero downtime.
+3. Liquibase migrations run on the connected Amazon RDS MySQL instance automatically on application startup.
+
+### AWS Setup Prerequisites
+
+1. **AWS Elastic Beanstalk Application & Environment:**
+   - Platform: `Java` (e.g. `Corretto 17 running on 64bit Amazon Linux 2023`).
+   - App Name: `digital-library`
+   - Environment Name: `digital-library-env`
+2. **Amazon RDS MySQL:**
+   - Launch a MySQL 8 RDS instance in the same VPC or configure security groups to allow inbound traffic on port 3306 from the Elastic Beanstalk EC2 instances.
+3. **Elastic Beanstalk Environment Properties:**
+   In the AWS Console under **Elastic Beanstalk > Environments > digital-library-env > Configuration > Software**, add:
+   - `DB_HOST`: `<your-rds-endpoint>` (e.g. `digital-library-db.xxxxxx.us-east-1.rds.amazonaws.com`)
+   - `DB_PORT`: `3306`
+   - `DB_NAME`: `digital_library`
+   - `SPRING_DATASOURCE_USERNAME`: `<your-db-username>`
+   - `SPRING_DATASOURCE_PASSWORD`: `<your-db-password>`
+   - `PORT`: `5000`
+
+### Bitbucket Repository Configuration
+
+In Bitbucket, go to **Repository Settings > Pipelines > Repository variables** and configure:
+
+| Variable | Description | Encrypted (Secured) |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | IAM User Access Key with EB & S3 permissions | Yes |
+| `AWS_SECRET_ACCESS_KEY` | IAM User Secret Key | Yes |
+| `AWS_DEFAULT_REGION` | AWS Region (e.g., `us-east-1`) | No |
+| `APPLICATION_NAME` | Elastic Beanstalk application name (`digital-library`) | No |
+| `ENVIRONMENT_NAME` | Elastic Beanstalk environment name (`digital-library-env`) | No |
+| `S3_BUCKET` | Elastic Beanstalk storage bucket (e.g. `elasticbeanstalk-us-east-1-xxxxxxxxxxxx`) | No |
+
+### Triggering a Cloud Deployment
+
+Once repository variables are set, simply push to `main`:
+
+```bash
+git push origin main
+```
+
+Monitor the deployment in Bitbucket under the **Pipelines** tab.
+
+---
+
 ## Configuration (`application.yaml`)
 
 | Environment Variable | Default Value | Description |
 |----------------------|---------------|-------------|
-| `PORT` | `8080` | HTTP server port |
+| `PORT` | `8080` (or `5000` on AWS EB) | HTTP server port |
 | `DB_HOST` | `mysql` (`localhost` with `--spring.profiles.active=local`) | Database host |
 | `DB_PORT` | `3306` (`3307` with `--spring.profiles.active=local`) | Database port |
 | `DB_NAME` | `digital_library` | Database name |
@@ -216,9 +272,13 @@ The OpenLibrary integration is protected with Resilience4j:
 
 ```
 digital-library/
+├── .ebextensions/            # AWS Elastic Beanstalk configurations
+│   └── 01_app.config
+├── bitbucket-pipelines.yml   # CI/CD pipeline for Bitbucket Cloud
 ├── Dockerfile                # Multi-stage Docker build
 ├── docker-compose.yml        # MySQL + App orchestration
 ├── pom.xml
+├── Procfile                  # Elastic Beanstalk process definition
 └── src/main/
     ├── java/com/digitallibrary/
     │   ├── client/           # OpenLibrary API client
@@ -230,7 +290,7 @@ digital-library/
     │   ├── repository/       # Spring Data repositories
     │   └── service/          # Business logic
     └── resources/
-        ├── application.yaml  # App configuration (Docker Compose ready)
+        ├── application.yaml  # App configuration (Docker Compose & Cloud ready)
         └── db/changelog/     # Liquibase migrations (XML)
             ├── db.changelog-master.xml
             └── changes/
