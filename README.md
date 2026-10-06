@@ -10,6 +10,7 @@ A Spring Boot REST API service that searches authors and their works using a loc
 - **Liquibase** – XML-based database migrations
 - **Resilience4j** – Circuit breaker & retry for OpenLibrary calls
 - **Lombok**
+- **MapStruct** – Type-safe compile-time bean mapping
 - **Maven**
 - **Docker** & **Docker Compose**
 - **AWS Elastic Beanstalk** (Corretto 17) & **Bitbucket Pipelines** (CI/CD)
@@ -112,11 +113,14 @@ mvn test
 mvn test -Dtest=AuthorControllerTest
 mvn test -Dtest=AuthorServiceImplTest
 mvn test -Dtest=AuthorRepositoryTest
+mvn test -Dtest=AuthorMapperTest
+mvn test -Dtest=WorkMapperTest
 ```
 
 ### Test Coverage Highlights:
 - **`AuthorControllerTest`** (`@WebMvcTest`): Verifies REST endpoints, parameter validations (`@NotBlank`), JSON serialization, and global exception mapping (`400 Bad Request`, `404 Not Found`).
-- **`AuthorServiceImplTest`** (Unit tests with Mockito): Tests business logic for database caching, OpenLibrary API query fallbacks, entity persistence, and error handling.
+- **`AuthorServiceImplTest`** (Unit tests with Mockito & MapStruct): Tests business logic for database caching, OpenLibrary API query fallbacks, entity persistence, and error handling.
+- **`AuthorMapperTest` & `WorkMapperTest`**: Verifies MapStruct compile-time bean mappings between Entities, DTOs, and OpenLibrary models.
 - **`AuthorRepositoryTest`** (`@DataJpaTest`): Tests JPA query methods, case-insensitive search, and table relationships executed against in-memory H2 with Liquibase XML migrations.
 
 ---
@@ -308,6 +312,7 @@ digital-library/
     │   ├── dto/              # Request/Response DTOs
     │   ├── entity/           # JPA entities
     │   ├── exception/        # Exception handling
+    │   ├── mapper/           # MapStruct mappers (Entities <-> DTOs)
     │   ├── repository/       # Spring Data repositories
     │   └── service/          # Business logic
     └── resources/

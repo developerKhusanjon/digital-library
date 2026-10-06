@@ -27,6 +27,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import com.digitallibrary.mapper.AuthorMapper;
+import com.digitallibrary.mapper.WorkMapper;
+import org.mapstruct.factory.Mappers;
+import org.mockito.Spy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
@@ -41,6 +45,12 @@ class AuthorServiceImplTest {
 
     @Mock
     private OpenLibraryClient openLibraryClient;
+
+    @Spy
+    private AuthorMapper authorMapper = Mappers.getMapper(AuthorMapper.class);
+
+    @Spy
+    private WorkMapper workMapper = Mappers.getMapper(WorkMapper.class);
 
     @InjectMocks
     private AuthorServiceImpl authorService;
