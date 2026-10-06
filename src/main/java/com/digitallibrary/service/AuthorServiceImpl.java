@@ -3,8 +3,8 @@ package com.digitallibrary.service;
 import com.digitallibrary.client.OpenLibraryClient;
 import com.digitallibrary.client.dto.OpenLibraryAuthorSearchResponse;
 import com.digitallibrary.client.dto.OpenLibraryWorksResponse;
-import com.digitallibrary.dto.AuthorResponse;
-import com.digitallibrary.dto.WorkResponse;
+import com.digitallibrary.dto.AuthorDto;
+import com.digitallibrary.dto.WorkDto;
 import com.digitallibrary.entity.Author;
 import com.digitallibrary.entity.Work;
 import com.digitallibrary.exception.AuthorNotFoundException;
@@ -30,7 +30,7 @@ public class AuthorServiceImpl implements AuthorService {
 
     @Override
     @Transactional
-    public List<AuthorResponse> searchAuthorsByName(String name) {
+    public List<AuthorDto> searchAuthorsByName(String name) {
         log.debug("Searching authors in DB by name: {}", name);
 
         // 1. Try local database first
@@ -49,7 +49,7 @@ public class AuthorServiceImpl implements AuthorService {
 
     @Override
     @Transactional
-    public List<WorkResponse> getWorksByAuthorId(String authorId) {
+    public List<WorkDto> getWorksByAuthorId(String authorId) {
         log.debug("Searching works for author: {}", authorId);
 
         // 1. Find the author in DB
@@ -73,7 +73,7 @@ public class AuthorServiceImpl implements AuthorService {
 
     // --- Private helpers ---
 
-    private List<AuthorResponse> persistAndMapAuthors(OpenLibraryAuthorSearchResponse response) {
+    private List<AuthorDto> persistAndMapAuthors(OpenLibraryAuthorSearchResponse response) {
         if (response.getDocs() == null || response.getDocs().isEmpty()) {
             return Collections.emptyList();
         }
@@ -95,14 +95,14 @@ public class AuthorServiceImpl implements AuthorService {
         // Return ALL matching docs (including already existing ones)
         return response.getDocs().stream()
                 .filter(doc -> doc.getKey() != null && doc.getName() != null)
-                .map(doc -> AuthorResponse.builder()
+                .map(doc -> AuthorDto.builder()
                         .id(doc.getKey())
                         .name(doc.getName())
                         .build())
                 .collect(Collectors.toList());
     }
 
-    private List<WorkResponse> persistAndMapWorks(
+    private List<WorkDto> persistAndMapWorks(
             OpenLibraryWorksResponse response,
             String authorId,
             Author existingAuthor) {
@@ -139,25 +139,25 @@ public class AuthorServiceImpl implements AuthorService {
 
         return response.getEntries().stream()
                 .filter(entry -> entry.getKey() != null && entry.getTitle() != null)
-                .map(entry -> WorkResponse.builder()
+                .map(entry -> WorkDto.builder()
                         .key(entry.getKey())
                         .title(entry.getTitle())
                         .build())
                 .collect(Collectors.toList());
     }
 
-    private List<AuthorResponse> toAuthorResponses(List<Author> authors) {
+    private List<AuthorDto> toAuthorResponses(List<Author> authors) {
         return authors.stream()
-                .map(a -> AuthorResponse.builder()
+                .map(a -> AuthorDto.builder()
                         .id(a.getExternalId())
                         .name(a.getName())
                         .build())
                 .collect(Collectors.toList());
     }
 
-    private List<WorkResponse> toWorkResponses(List<Work> works) {
+    private List<WorkDto> toWorkResponses(List<Work> works) {
         return works.stream()
-                .map(w -> WorkResponse.builder()
+                .map(w -> WorkDto.builder()
                         .key(w.getExternalKey())
                         .title(w.getTitle())
                         .build())

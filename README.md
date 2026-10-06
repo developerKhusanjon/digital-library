@@ -11,57 +11,106 @@ A Spring Boot REST API service that searches authors and their works using a loc
 - **Resilience4j** – Circuit breaker & retry for OpenLibrary calls
 - **Lombok**
 - **Maven**
+- **Docker** & **Docker Compose**
 
 ---
 
-## Prerequisites
+## Getting Started
 
-| Tool  | Version |
-|-------|---------|
-| JDK   | 17+     |
-| Maven  | 3.8+    |
-| MySQL  | 8.0+    |
+`application.yaml` is pre-configured to run with Docker Compose out of the box (connecting to the `mysql` service on port `3306`), and supports a `local` profile (port `3307`) for rapid local development and testing.
 
----
+### Option 1: Run Everything with Docker Compose (Recommended)
 
-## Database Setup
+The easiest way to run the entire project — no JDK, Maven, or MySQL installation required.
 
-1. Start your MySQL server.
-2. Create the database:
-
-```sql
-CREATE DATABASE digital_library;
-```
-
-3. The default connection settings in `application.yml` are:
-
-```yaml
-url: jdbc:mysql://localhost:3306/digital_library
-username: root
-password: root
-```
-
-> Adjust these values in [`src/main/resources/application.yml`](src/main/resources/application.yml) if your MySQL credentials differ.
-
-Liquibase will automatically create the `author` and `work` tables on startup.
-
----
-
-## Running the Application
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed.
 
 ```bash
 # Clone the repository
 git clone https://github.com/developerKhusanjon/digital-library.git
 cd digital-library
 
-# Build the project
-./mvnw clean package -DskipTests
-
-# Run the application
-./mvnw spring-boot:run
+# Build and start all services
+docker compose up --build
 ```
 
-The server starts on **http://localhost:8080**.
+This will:
+- Start a **MySQL 8** container (`digital-library-db`, port `3307` mapped to host)
+- Build the Spring Boot container (`digital-library-app`, port `8080` mapped to host)
+- Run Liquibase migrations automatically on startup
+
+The API will be available at **http://localhost:8080**.
+
+**Useful commands:**
+
+```bash
+# Run in detached mode (background)
+docker compose up --build -d
+
+# View application logs
+docker compose logs -f app
+
+# Stop all services
+docker compose down
+
+# Stop and remove database volume (full reset)
+docker compose down -v
+```
+
+---
+
+### Option 2: Run DB in Docker & App Locally (Fastest for Dev & Testing)
+
+If you are developing or testing code changes quickly:
+
+1. **Start only the MySQL database container:**
+```bash
+docker compose up -d mysql
+```
+*(MySQL is available on host port `3307`)*
+
+2. **Run the Spring Boot application using the `local` profile:**
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+*(The `local` profile in `application.yaml` automatically connects to `localhost:3307`)*
+
+---
+
+### Option 3: Run Locally (Standalone MySQL)
+
+If you have a local standalone MySQL server running on port `3306`:
+
+1. Create the database:
+```sql
+CREATE DATABASE digital_library;
+```
+
+2. Run the application:
+```bash
+mvn spring-boot:run -Dspring-boot.run.arguments="--spring.datasource.url=jdbc:mysql://localhost:3306/digital_library?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+```
+Or set environment variables:
+```bash
+export DB_HOST=localhost
+export DB_PORT=3306
+mvn spring-boot:run
+```
+
+---
+
+## Configuration (`application.yaml`)
+
+| Environment Variable | Default Value | Description |
+|----------------------|---------------|-------------|
+| `PORT` | `8080` | HTTP server port |
+| `DB_HOST` | `mysql` (`localhost` with `--spring.profiles.active=local`) | Database host |
+| `DB_PORT` | `3306` (`3307` with `--spring.profiles.active=local`) | Database port |
+| `DB_NAME` | `digital_library` | Database name |
+| `SPRING_DATASOURCE_USERNAME` | `root` | Database user |
+| `SPRING_DATASOURCE_PASSWORD` | `root` | Database password |
+| `SPRING_DATASOURCE_URL` | Computed from host/port/name | Full JDBC URL override |
+| `OPENLIBRARY_BASE_URL` | `https://openlibrary.org` | OpenLibrary API URL |
 
 ---
 
@@ -166,21 +215,25 @@ The OpenLibrary integration is protected with Resilience4j:
 ## Project Structure
 
 ```
-src/main/
-├── java/com/digitallibrary/
-│   ├── client/           # OpenLibrary API client
-│   ├── config/           # App configuration
-│   ├── controller/       # REST controllers
-│   ├── dto/              # Request/Response DTOs
-│   ├── entity/           # JPA entities
-│   ├── exception/        # Exception handling
-│   ├── repository/       # Spring Data repositories
-│   └── service/          # Business logic
-└── resources/
-    ├── application.yml   # App configuration
-    └── db/changelog/     # Liquibase migrations (XML)
-        ├── db.changelog-master.xml
-        └── changes/
-            ├── 001-create-author-table.xml
-            └── 002-create-work-table.xml
+digital-library/
+├── Dockerfile                # Multi-stage Docker build
+├── docker-compose.yml        # MySQL + App orchestration
+├── pom.xml
+└── src/main/
+    ├── java/com/digitallibrary/
+    │   ├── client/           # OpenLibrary API client
+    │   ├── config/           # App configuration
+    │   ├── controller/       # REST controllers
+    │   ├── dto/              # Request/Response DTOs
+    │   ├── entity/           # JPA entities
+    │   ├── exception/        # Exception handling
+    │   ├── repository/       # Spring Data repositories
+    │   └── service/          # Business logic
+    └── resources/
+        ├── application.yaml  # App configuration (Docker Compose ready)
+        └── db/changelog/     # Liquibase migrations (XML)
+            ├── db.changelog-master.xml
+            └── changes/
+                ├── 001-create-author-table.xml
+                └── 002-create-work-table.xml
 ```

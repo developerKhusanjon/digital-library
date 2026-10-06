@@ -1,7 +1,7 @@
 package com.digitallibrary.controller;
 
-import com.digitallibrary.dto.AuthorResponse;
-import com.digitallibrary.dto.WorkResponse;
+import com.digitallibrary.dto.AuthorDto;
+import com.digitallibrary.dto.WorkDto;
 import com.digitallibrary.service.AuthorService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +28,10 @@ public class AuthorController {
      * @return list of matching authors
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<AuthorResponse>> searchAuthors(
+    public ResponseEntity<List<AuthorDto>> searchAuthors(
             @RequestParam @NotBlank(message = "Name parameter must not be blank") String name) {
 
-        List<AuthorResponse> authors = authorService.searchAuthorsByName(name);
+        List<AuthorDto> authors = authorService.searchAuthorsByName(name);
         return ResponseEntity.ok(authors);
     }
 
@@ -43,10 +43,10 @@ public class AuthorController {
      * @return list of the author's works
      */
     @GetMapping(value = "/{authorId}/works", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<WorkResponse>> getAuthorWorks(
+    public ResponseEntity<List<WorkDto>> getAuthorWorks(
             @PathVariable @NotBlank String authorId) {
 
-        List<WorkResponse> works = authorService.getWorksByAuthorId(authorId);
+        List<WorkDto> works = authorService.getWorksByAuthorId(authorId);
         return ResponseEntity.ok(works);
     }
 }

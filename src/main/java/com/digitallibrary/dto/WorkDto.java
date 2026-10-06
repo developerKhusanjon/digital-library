@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WorkResponse {
+public class WorkDto {
     private String key;
     private String title;
 }
