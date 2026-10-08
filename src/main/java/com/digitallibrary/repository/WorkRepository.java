@@ -12,4 +12,8 @@ public interface WorkRepository extends JpaRepository<Work, Long> {
     List<Work> findByAuthorId(Long authorId);
 
     boolean existsByAuthorId(Long authorId);
+
+    boolean existsByExternalKey(String externalKey);
+
+    java.util.Optional<Work> findByExternalKey(String externalKey);
 }

@@ -25,4 +25,12 @@ public interface OpenLibraryClient {
      * @return works response or empty if the external API is unavailable
      */
     Optional<OpenLibraryWorksResponse> getAuthorWorks(String authorId);
+
+    /**
+     * Fetch individual author details by author key.
+     *
+     * @param authorId the OpenLibrary author key (e.g. "OL23919A")
+     * @return author details response or empty if not found or API is unavailable
+     */
+    Optional<com.digitallibrary.client.dto.OpenLibraryAuthorDetailsResponse> getAuthorDetails(String authorId);
 }

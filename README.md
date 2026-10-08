@@ -117,9 +117,10 @@ mvn test -Dtest=AuthorMapperTest
 mvn test -Dtest=WorkMapperTest
 ```
 
-### Test Coverage Highlights:
-- **`AuthorControllerTest`** (`@WebMvcTest`): Verifies REST endpoints, parameter validations (`@NotBlank`), JSON serialization, and global exception mapping (`400 Bad Request`, `404 Not Found`).
-- **`AuthorServiceImplTest`** (Unit tests with Mockito & MapStruct): Tests business logic for database caching, OpenLibrary API query fallbacks, entity persistence, and error handling.
+### Test Coverage Highlights (43 Tests):
+- **`AuthorControllerTest`** (`@WebMvcTest`): Verifies REST endpoints, parameter validations, query parameter variants (`name` and `q`), endpoint route aliases (`/api/v1/authors`, `/api/authors`, `/authors`), JSON serialization, circuit breaker 503 handling, and global exception mapping (`400 Bad Request`, `404 Not Found`, `503 Service Unavailable`).
+- **`AuthorServiceImplTest`** (Unit tests with Mockito & MapStruct): Tests business logic for database caching, OpenLibrary API query fallbacks, entity persistence with real author names, numeric DB ID lookups, author key and human-readable slug normalization, duplicate deduplication, and title length protection.
+- **`OpenLibraryClientImplTest`**: Tests author key normalization across diverse URL/path formats, human-readable slugs, and `.json` extensions per OpenLibrary developer guidelines.
 - **`AuthorMapperTest` & `WorkMapperTest`**: Verifies MapStruct compile-time bean mappings between Entities, DTOs, and OpenLibrary models.
 - **`AuthorRepositoryTest`** (`@DataJpaTest`): Tests JPA query methods, case-insensitive search, and table relationships executed against in-memory H2 with Liquibase XML migrations.
 
@@ -199,17 +200,21 @@ Monitor the deployment in Bitbucket under the **Pipelines** tab.
 
 ### 1. Search Authors
 
-Search authors by name. Checks the local database first, then falls back to the OpenLibrary API.
+Search authors by name. Checks the local database first, then falls back to the OpenLibrary API. Matching results from OpenLibrary are persisted to the database.
 
 ```
 GET /api/v1/authors?name={name}
 ```
+*(Aliases: `/api/authors?name={name}`, `/authors?name={name}`, and accepts either `?name=` or `?q=`)*
 
 **Query Parameters:**
 
 | Parameter | Type   | Required | Description            |
 |-----------|--------|----------|------------------------|
-| `name`    | String | Yes      | Author name to search  |
+| `name`    | String | Optional*| Author name to search  |
+| `q`       | String | Optional*| Alternative query param|
+
+*\* At least one of `name` or `q` must be provided and non-blank.*
 
 **Example Request:**
 
@@ -236,23 +241,30 @@ curl "http://localhost:8080/api/v1/authors?name=Tolkien"
 
 | Status | Condition                        |
 |--------|----------------------------------|
-| `400`  | `name` parameter is blank/missing |
+| `400`  | `name` / `q` parameter is missing or blank |
 
 ---
 
 ### 2. Get Author Works
 
-Get all works by an author using their OpenLibrary author key. Checks the local database first, then falls back to the OpenLibrary API.
+Get all works by an author using their OpenLibrary author key or internal database numeric ID. Checks the local database first, then falls back to OpenLibrary. When fetched from OpenLibrary, author details (from `/authors/{key}.json`) and works are saved to the database.
 
 ```
 GET /api/v1/authors/{authorId}/works
 ```
+*(Aliases: `/api/authors/{authorId}/works`, `/authors/{authorId}/works`, and supports query parameter `/api/v1/authors/works?authorId={authorId}`)*
 
 **Path Parameters:**
 
-| Parameter  | Type   | Required | Description                               |
-|------------|--------|----------|-------------------------------------------|
-| `authorId` | String | Yes      | OpenLibrary author key (e.g. `OL26320A`)  |
+| Parameter  | Type   | Required | Description                                                             |
+|------------|--------|----------|-------------------------------------------------------------------------|
+| `authorId` | String | Yes      | OpenLibrary author key (e.g. `OL26320A`), slug, or numeric database ID |
+
+**OpenLibrary Gotchas Handled Automatically:**
+- Strips OpenLibrary URL prefixes (e.g. `/authors/OL23919A` -> `OL23919A`).
+- Strips human-readable redirected slugs (e.g. `OL23919A/J._K._Rowling` -> `OL23919A`).
+- Strips trailing `.json` if supplied by caller.
+- Resolves author's real display name via `https://openlibrary.org/authors/{authorKey}.json` when author is not yet in the local database.
 
 **Example Request:**
 
@@ -279,6 +291,7 @@ curl "http://localhost:8080/api/v1/authors/OL26320A/works"
 
 | Status | Condition                                      |
 |--------|------------------------------------------------|
+| `400`  | `authorId` is missing or blank                 |
 | `404`  | Author not found in DB or OpenLibrary          |
 | `503`  | OpenLibrary API is unavailable (circuit open)  |
 

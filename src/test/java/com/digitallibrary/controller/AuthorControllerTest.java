@@ -120,4 +120,69 @@ class AuthorControllerTest {
 
         verify(authorService, times(1)).getWorksByAuthorId("UNKNOWN_ID");
     }
+
+    @Test
+    @DisplayName("GET /api/v1/authors?q=Tolkien - should support 'q' query parameter")
+    void searchAuthors_WithQParam_Success() throws Exception {
+        List<AuthorDto> authors = List.of(new AuthorDto("OL26320A", "J.R.R. Tolkien"));
+        when(authorService.searchAuthorsByName("Tolkien")).thenReturn(authors);
+
+        mockMvc.perform(get("/api/v1/authors")
+                        .param("q", "Tolkien")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name", is("J.R.R. Tolkien")));
+
+        verify(authorService, times(1)).searchAuthorsByName("Tolkien");
+    }
+
+    @Test
+    @DisplayName("GET /authors?name=Tolkien - should support root alias path /authors")
+    void searchAuthors_RootAliasPath_Success() throws Exception {
+        List<AuthorDto> authors = List.of(new AuthorDto("OL26320A", "J.R.R. Tolkien"));
+        when(authorService.searchAuthorsByName("Tolkien")).thenReturn(authors);
+
+        mockMvc.perform(get("/authors")
+                        .param("name", "Tolkien")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name", is("J.R.R. Tolkien")));
+
+        verify(authorService, times(1)).searchAuthorsByName("Tolkien");
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/authors/works?authorId=OL26320A - should support authorId as query param")
+    void getAuthorWorks_WithQueryParam_Success() throws Exception {
+        List<WorkDto> works = List.of(new WorkDto("/works/OL27516W", "The Hobbit"));
+        when(authorService.getWorksByAuthorId("OL26320A")).thenReturn(works);
+
+        mockMvc.perform(get("/api/v1/authors/works")
+                        .param("authorId", "OL26320A")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", is("The Hobbit")));
+
+        verify(authorService, times(1)).getWorksByAuthorId("OL26320A");
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/authors/{authorId}/works - should return 503 when circuit breaker is open")
+    void getAuthorWorks_CircuitBreakerOpen_Returns503() throws Exception {
+        io.github.resilience4j.circuitbreaker.CircuitBreaker cb =
+                io.github.resilience4j.circuitbreaker.CircuitBreaker.ofDefaults("openLibrary");
+        io.github.resilience4j.circuitbreaker.CallNotPermittedException exception =
+                io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(cb);
+
+        when(authorService.getWorksByAuthorId("OL26320A")).thenThrow(exception);
+
+        mockMvc.perform(get("/api/v1/authors/OL26320A/works")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status", is(503)))
+                .andExpect(jsonPath("$.error", is("Service Unavailable")));
+    }
 }
